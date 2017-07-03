@@ -1,0 +1,211 @@
+<link rel="import" href="../../polymer/polymer.html">
+<link rel="import" href="../../iron-icon/iron-icon.html">
+<link rel="import" href="../../mostly-elements/mostly-common/mostly-connection.html">
+<link rel="import" href="../../mostly-elements/mostly-common/mostly-operation.html">
+<link rel="import" href="../../mostly-elements/mostly-common/mostly-page-provider.html">
+<link rel="import" href="../../mostly-elements/behaviors/mostly-routing-behavior.html">
+<link rel="import" href="../../mostly-elements/behaviors/mostly-i18n-behavior.html">
+<link rel="import" href="../../mostly-elements/behaviors/mostly-filters-behavior.html">
+<link rel="import" href="../../mostly-elements/mostly-data-list/mostly-data-list.html">
+<link rel="import" href="../../mostly-elements/mostly-thumbnail/mostly-thumbnail.html">
+
+<!--
+`playing-favorites`
+@group Playing UI
+@element playing-favorites
+-->
+<dom-module id="playing-favorites">
+  <template>
+    <style>
+
+      .content {
+        @apply(--layout-vertical);
+      }
+
+      mostly-data-list {
+        display: block;
+        position: relative;
+        min-height: calc(100vh - 61px)
+      }
+
+      .favIcon {
+        --iron-icon-height: 16px;
+        --iron-icon-width: 16px;
+        padding-right: 2px;
+      }
+
+      .favRemove {
+        padding: 0;
+        width: 1.5em;
+        height: 1.5em;
+      }
+
+      .favLink.ellipsis {
+        display: inline-block;
+        width: 80%;
+        vertical-align: middle;
+        text-overflow: ellipsis;
+      }
+
+      .list-item {
+        cursor: pointer;
+        padding: 1em;
+        border-bottom: 1px solid var(--nuxeo-border);
+      }
+
+      .ellipsis {
+        vertical-align: middle;
+        text-overflow: ellipsis;
+        overflow: hidden;
+      }
+
+      .list-item:hover {
+        @apply(--nuxeo-block-hover);
+      }
+
+      .list-item.selected,
+      .list-item:focus,
+      .list-item.selected:focus {
+        @apply(--nuxeo-block-selected);
+      }
+
+      .list-item-property {
+        opacity: .5;
+        margin-right: .2em;
+      }
+
+      .list-item iron-icon {
+        @apply(--mostly-action);
+        color: var(--nuxeo-drawer-text);
+      }
+
+      .list-item iron-icon:hover {
+        @apply(--nuxeo-action-hover);
+        color: var(--nuxeo-drawer-text);
+      }
+
+      .remove {
+        width: 1.5em;
+        height: 1.5em;
+      }
+    </style>
+
+    <mostly-operation id="removeFromFavOp"
+      op="Document.RemoveFromFavorites"></mostly-operation>
+
+    <mostly-operation id="fetchFavOp" op="Favorite.Fetch" response="favorite"></mostly-operation>
+
+    <mostly-page-provider id="favoritesProvider"
+       provider="default_content_collection"
+       page-size="50"
+       schemas="dublincore,common"
+       enrichers="thumbnail">
+    </mostly-page-provider>
+
+    <div class="header">[[i18n('app.favorites')]]</div>
+    <div class="content">
+      <mostly-data-list nx-provider="favoritesProvider" id="favoritesList"
+        selected-item="{{selectedFavorite}}" items="{{favorites}}"
+        selection-enabled as="favorite"
+        empty-label="[[i18n('favorites.empty')]]"
+        empty-label-when-filtered="[[i18n('favorites.empty')]]">
+        <template>
+          <div tabindex$="{{tabIndex}}" class$="[[_computedClass(selected)]]">
+            <div class="list-item-box vertical layout">
+              <div class="list-item-info horizontal layout center" >
+                <div class="vertical layout center">
+                  <mostly-thumbnail document="[[favorite]]"></mostly-thumbnail>
+                </div>
+                <span class="list-item-title ellipsis flex">[[favorite.title]]</span>
+                <iron-icon  id="removeFromFavorites" class="remove"
+                  icon="nuxeo:remove" data-uid$="[[favorite.uid]]" on-tap="_removeFromFavorites">
+                </iron-icon>
+              </div>
+            </div>
+          </div>
+        </template>
+      </mostly-data-list>
+
+    </div>
+  </template>
+  <script>
+    Polymer({
+      is: 'playing-favorites',
+      behaviors: [Mostly.RoutingBehavior, Mostly.I18nBehavior, Mostly.FiltersBehavior],
+      properties: {
+        favorites: {
+          type: Object,
+          notify: true
+        },
+        selectedFavorite: {
+          type: Object,
+          observer: '_selectedFavoriteChanged',
+          notify: true
+        },
+        visible: {
+          type: Boolean,
+          observer: '_visibleChanged'
+        }
+      },
+
+      _visibleChanged: function() {
+        if (this.visible && !this.favorite) {
+          this._refresh();
+        }
+      },
+
+      ready: function() {
+        window.addEventListener('added-to-favorites', this._refresh.bind(this));
+        window.addEventListener('removed-from-favorites', this._refresh.bind(this));
+      },
+
+      _refresh: function() {
+        this._fetchFavorite().then(function(favorite) {
+          this.$.favoritesProvider.params = [favorite.uid];
+          this.$.favoritesProvider.page = 1;
+          this.$.favoritesProvider.fetch();
+        }.bind(this));
+      },
+
+      _fetchFavorite: function() {
+        if (this.favorite) {
+          return Promise.resolve(this.favorite);
+        } else {
+          return this.$.fetchFavOp.execute()
+            .then(function(resp) {
+              this.favorite = resp;
+              return resp;
+            }.bind(this));
+        }
+      },
+
+      _computedClass: function(isSelected) {
+        var classes = 'list-item';
+        if (isSelected) {
+          classes += ' selected';
+        }
+        return classes;
+      },
+
+      _selectedFavoriteChanged: function(doc) {
+        if (doc) {
+          if (doc.isVersion) {
+            this.navigateTo('document', doc.uid);
+          } else {
+            this.navigateTo('browse', doc.path);
+          }
+        }
+      },
+
+      _removeFromFavorites: function(e) {
+        e.stopImmediatePropagation();
+        var docUid = e.model.favorite.uid;
+        this.$.removeFromFavOp.input = docUid;
+        this.$.removeFromFavOp.execute().then(function() {
+          this.fire('removed-from-favorites', {docUid: docUid});
+        }.bind(this));
+      }
+
+    });
+  </script>
+</dom-module>
