@@ -91,24 +91,25 @@
     </style>
 
     <mostly-operation id="removeFromFavOp"
-      op="Document.RemoveFromFavorites"></mostly-operation>
+            path="favorites" op="removeFromFavorites"></mostly-operation>
 
-    <mostly-operation id="fetchFavOp" op="Favorite.Fetch" response="favorite"></mostly-operation>
+    <mostly-operation id="fetchFavOp"
+            path="favorites" op="Favorite.Fetch" response="favorite"></mostly-operation>
 
     <mostly-page-provider id="favoritesProvider"
-       provider="default_content_collection"
-       page-size="50"
-       schemas="dublincore,common"
-       enrichers="thumbnail">
+            provider="default_content_collection"
+            page-size="50"
+            schemas="dublincore,common"
+            enrichers="thumbnail">
     </mostly-page-provider>
 
     <div class="header">[[i18n('app.favorites')]]</div>
     <div class="content">
       <mostly-data-list nx-provider="favoritesProvider" id="favoritesList"
-        selected-item="{{selectedFavorite}}" items="{{favorites}}"
-        selection-enabled as="favorite"
-        empty-label="[[i18n('favorites.empty')]]"
-        empty-label-when-filtered="[[i18n('favorites.empty')]]">
+                selected-item="{{selectedFavorite}}" items="{{favorites}}"
+                selection-enabled as="favorite"
+                empty-label="[[i18n('favorites.empty')]]"
+                empty-label-when-filtered="[[i18n('favorites.empty')]]">
         <template>
           <div tabindex$="{{tabIndex}}" class$="[[_computedClass(selected)]]">
             <div class="list-item-box vertical layout">
@@ -117,8 +118,8 @@
                   <mostly-thumbnail document="[[favorite]]"></mostly-thumbnail>
                 </div>
                 <span class="list-item-title ellipsis flex">[[favorite.title]]</span>
-                <iron-icon  id="removeFromFavorites" class="remove"
-                  icon="nuxeo:remove" data-uid$="[[favorite.uid]]" on-tap="_removeFromFavorites">
+                <iron-icon id="removeFromFavorites" class="remove"
+                        icon="nuxeo:remove" data-uid$="[[favorite.id]]" on-tap="_removeFromFavorites">
                 </iron-icon>
               </div>
             </div>
@@ -161,7 +162,7 @@
 
       _refresh: function() {
         this._fetchFavorite().then(function(favorite) {
-          this.$.favoritesProvider.params = [favorite.uid];
+          this.$.favoritesProvider.params = [favorite.id];
           this.$.favoritesProvider.page = 1;
           this.$.favoritesProvider.fetch();
         }.bind(this));
@@ -190,7 +191,7 @@
       _selectedFavoriteChanged: function(doc) {
         if (doc) {
           if (doc.isVersion) {
-            this.navigateTo('document', doc.uid);
+            this.navigateTo('document', doc.id);
           } else {
             this.navigateTo('browse', doc.path);
           }
@@ -199,7 +200,7 @@
 
       _removeFromFavorites: function(e) {
         e.stopImmediatePropagation();
-        var docUid = e.model.favorite.uid;
+        var docUid = e.model.favorite.id;
         this.$.removeFromFavOp.input = docUid;
         this.$.removeFromFavOp.execute().then(function() {
           this.fire('removed-from-favorites', {docUid: docUid});
