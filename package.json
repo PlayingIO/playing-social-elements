@@ -1,6 +1,6 @@
 {
   "name": "playing-social-elements",
-  "description": "Social relationship management web components for playful applications",
+  "description": "Social relationship management web components for building playful applications",
   "version": "1.0.3",
   "license": "MIT",
   "devDependencies": {

@@ -1,7 +1,7 @@
 Playing Social Web Components
 =============================
 
-Social relationship management web components for playful applications.
+Social relationship management web components for building playful applications.
 
 # Usage
 
